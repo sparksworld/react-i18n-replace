@@ -13,8 +13,8 @@ import {
 } from "./utils";
 
 const identifier = "lang";
-const importLibrary = "react-i18next";
-const importFunctions = ["lang", "useTranslation"];
+const importLibrary = "@/i18n";
+const importFunctions = ["lang"];
 // const hook = {
 //   identifier: ["t"],
 //   name: "useTranslation",
@@ -42,8 +42,8 @@ const main = async () => {
     traverse(ast, {
       JSXText(path) {
         const value = path.node.value
-          ?.replace(/^[\n]+/, "")
-          ?.replace(/[\n]+$/, "");
+          ?.replace(/^[\n ]+/, "")
+          ?.replace(/[\n ]+$/, "");
 
         if (hasChineseCharacters(value)) {
           path.replaceWith(
