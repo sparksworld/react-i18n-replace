@@ -4,18 +4,21 @@ import * as parser from "@babel/parser";
 import traverse from "@babel/traverse";
 import generator from "@babel/generator";
 import * as t from "@babel/types";
-import { glob } from "glob";
-import * as babel from "@babel/core";
 import * as _ from "lodash";
+import { glob } from "glob";
 import {
   checkVariableExistsInFunction,
   hasChineseCharacters,
   removeDuplicateKeysFromObjectExpression,
 } from "./utils";
 
-// 检查是否已引入 i18n 中的 t 方法
-
 const identifier = "lang";
+const importLibrary = "react-i18next";
+const importFunctions = ["lang", "useTranslation"];
+// const hook = {
+//   identifier: ["t"],
+//   name: "useTranslation",
+// };
 
 const main = async () => {
   const files = await glob(
@@ -36,68 +39,11 @@ const main = async () => {
       plugins: ["typescript", "jsx"],
     });
 
-    let hasTMethodImport = false;
-
     traverse(ast, {
-      // ImportDeclaration(path) {
-      //   const { node } = path;
-      //   if (node.source.value === "react-i18next") {
-      //     const importedT = node.specifiers.find((specifier) => {
-      //       if (t.isImportSpecifier(specifier)) {
-      //         if (t.isIdentifier(specifier.imported)) {
-      //           return specifier.imported.name === "useTranslation";
-      //         }
-      //       }
-      //     });
-      //     if (importedT) {
-      //       hasTMethodImport = true;
-      //     }
-      //   }
-      // },
-      // "FunctionDeclaration|ArrowFunctionExpression"(path) {
-      //   const { node } = path;
-
-      //   const statement = t.variableDeclaration("const", [
-      //     t.variableDeclarator(
-      //       t.objectPattern([
-      //         t.objectProperty(
-      //           t.identifier(identifier),
-      //           t.identifier(identifier),
-      //           false,
-      //           true
-      //         ),
-      //       ]),
-      //       t.callExpression(t.identifier("useTranslation"), [])
-      //     ),
-      //   ]);
-
-      //   if (t.isArrowFunctionExpression(node)) {
-      //     if (t.isBlockStatement(node.body)) {
-      //       const jsxElements = node.body.body.filter((node) =>
-      //         t.isJSXElement(node)
-      //       );
-
-      //       if (!checkVariableExistsInFunction(node, identifier)) {
-      //         node.body.body.unshift(statement);
-      //       }
-      //     } else {
-      //       node.body = t.blockStatement([
-      //         statement,
-      //         t.returnStatement(node.body),
-      //       ]);
-      //     }
-      //   }
-
-      //   if (t.isFunctionDeclaration(node)) {
-      //     if (!checkVariableExistsInFunction(node, identifier)) {
-      //       node.body.body.unshift(statement);
-      //     }
-      //   }
-      // },
       JSXText(path) {
         const value = path.node.value
-          ?.replace(/^[\n ]+/, "")
-          ?.replace(/[\n ]+$/, "");
+          ?.replace(/^[\n]+/, "")
+          ?.replace(/[\n]+$/, "");
 
         if (hasChineseCharacters(value)) {
           path.replaceWith(
@@ -152,8 +98,6 @@ const main = async () => {
             );
           }
         }
-
-        // path.skip();
       },
       // TemplateLiteral
       TemplateLiteral(path) {
@@ -166,7 +110,7 @@ const main = async () => {
           const quasi = quasis[i];
           stringsList.push(quasi.value.raw);
           if (i < expressions.length) {
-            stringsList.push(`{{${expressions[i]?.loc?.identifierName}}}`);
+            stringsList.push(`{{${expressions[i]?.loc?.identifierName ?? i}}}`);
           }
         }
 
@@ -177,10 +121,10 @@ const main = async () => {
             expressions.length > 0
               ? removeDuplicateKeysFromObjectExpression(
                   t.objectExpression(
-                    expressions.map((item) =>
+                    expressions.map((item, index) =>
                       t.objectProperty(
-                        t.identifier(item.loc.identifierName),
-                        t.identifier(item.loc.identifierName),
+                        t.identifier(`${item.loc.identifierName ?? index}`),
+                        item as any,
                         false,
                         true
                       )
@@ -193,43 +137,119 @@ const main = async () => {
 
         path.replaceWith(codes);
       },
+    });
 
+    // 是否需要添加hooks???
+    // traverse(ast, {
+    //   "FunctionDeclaration|ArrowFunctionExpression"(path) {
+    //     let funcComponent = false;
+    //     let identifiers = [];
+
+    //     path.traverse({
+    //       JSXElement(path) {
+    //         const { node } = path;
+    //         if (t.isJSXElement(node)) {
+    //           funcComponent = true;
+    //         }
+    //       },
+    //       CallExpression(path) {
+    //         if (t.isIdentifier(path.node.callee)) {
+    //           if (hook.name.includes(path.node.callee.name)) {
+    //             identifiers = [
+    //               ...new Set(identifiers.concat(path.node.callee.name)),
+    //             ];
+    //           }
+    //         }
+    //       },
+    //     });
+
+    //     if (funcComponent && identifiers.length > 0) {
+    //       const { node } = path;
+    //       const statement = t.variableDeclaration("const", [
+    //         t.variableDeclarator(
+    //           t.objectPattern(
+    //             identifiers.map((identifier) =>
+    //               t.objectProperty(
+    //                 t.identifier(identifier),
+    //                 t.identifier(identifier),
+    //                 false,
+    //                 true
+    //               )
+    //             )
+    //           ),
+    //           t.callExpression(t.identifier(hook.name), [])
+    //         ),
+    //       ]);
+    //       if (t.isArrowFunctionExpression(node)) {
+    //         if (t.isBlockStatement(node.body)) {
+    //           if (!checkVariableExistsInFunction(node, identifier)) {
+    //             node.body.body.unshift(statement);
+    //           }
+    //         } else {
+    //           node.body = t.blockStatement([
+    //             statement,
+    //             t.returnStatement(node.body),
+    //           ]);
+    //         }
+    //       }
+    //       if (t.isFunctionDeclaration(node)) {
+    //         if (!checkVariableExistsInFunction(node, identifier)) {
+    //           node.body.body.unshift(statement);
+    //         }
+    //       }
+    //     }
+    //   },
+    // });
+
+    traverse(ast, {
       Program(path) {
         let importedNode;
-        // let lastImport;
+        let importFunc = [];
         const { node } = path;
         const { body } = node;
 
         path.traverse({
           ImportDeclaration(path) {
             const { node } = path;
-            if (node.source.value === "react-i18next") {
+            if (node.source.value === importLibrary) {
               importedNode = node;
             }
-            // lastImport = path;
+          },
+          CallExpression(path) {
+            const { node } = path;
+            if (t.isIdentifier(node.callee)) {
+              if (importFunctions.includes(node.callee.name)) {
+                importFunc = [...new Set(importFunc.concat(node.callee.name))];
+              }
+            }
+          },
+          Identifier(path) {
+            const { node } = path;
+            if (importFunctions.includes(node.name)) {
+              importFunc = [...new Set(importFunc.concat(node.name))];
+            }
           },
         });
 
         if (importedNode) {
-          const has = importedNode.specifiers.find((specifier) => {
-            if (t.isImportSpecifier(specifier)) {
-              if (t.isIdentifier(specifier.imported)) {
-                return specifier.imported.name === "useTranslation";
+          importFunc.forEach((func) => {
+            const has = importedNode.specifiers.find((specifier) => {
+              if (t.isImportSpecifier(specifier)) {
+                if (t.isIdentifier(specifier.imported)) {
+                  return specifier.imported.name === func;
+                }
               }
+            });
+            if (!has) {
+              importedNode.specifiers.push(t.identifier(func));
             }
           });
-          if (!has) {
-            importedNode.specifiers.push(t.identifier("useTranslation"));
-          }
         } else {
           const useTranslationImport = t.importDeclaration(
-            [
-              t.importSpecifier(
-                t.identifier("useTranslation"),
-                t.identifier("useTranslation")
-              ),
-            ],
-            t.stringLiteral("react-i18next")
+            importFunc.map((func) =>
+              t.importSpecifier(t.identifier(func), t.identifier(func))
+            ),
+            t.stringLiteral(importLibrary)
           );
           // lastImport.insertAfter(useTranslationImport)
           body.unshift(useTranslationImport);

@@ -1,5 +1,4 @@
 {
-  // "extends": "@yogo/tsconfig/react-library.json",
   "compilerOptions": {
     "composite": false,
     "declaration": true,
