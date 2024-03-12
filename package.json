@@ -1,14 +1,18 @@
 {
-  "name": "i18n-extract",
+  "name": "react-i18n-replace",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "lib/index.js",
+  "bin": {
+    "react-i18n-replace": "bin/react-i18n-replace"
+  },
   "scripts": {
     "dev": "ts-node src/index.ts",
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
+  "author": "spark",
   "license": "ISC",
   "dependencies": {
     "@babel/generator": "^7.23.6",
@@ -17,7 +21,8 @@
     "@babel/traverse": "^7.23.9",
     "@types/babel__traverse": "^7.20.5",
     "glob": "^10.3.10",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "prettier": "^3.2.5"
   },
   "devDependencies": {
     "@babel/core": "^7.23.9",

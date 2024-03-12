@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import prettier from "prettier";
 import * as parser from "@babel/parser";
 import traverse from "@babel/traverse";
 import generator from "@babel/generator";
@@ -15,36 +16,28 @@ import {
 const identifier = "lang";
 const importLibrary = "@/i18n";
 const importFunctions = ["lang"];
-// const hook = {
-//   identifier: ["t"],
-//   name: "useTranslation",
-// };
 
 const main = async () => {
-  const files = await glob(
-    path.resolve(process.cwd(), "test/**/*.{js,ts,tsx}"),
-    {
-      ignore: "node_modules/**",
-    }
-  );
-  files.forEach((src) => {
+  const options =
+    (await prettier.resolveConfig(
+      path.resolve(process.cwd(), ".prettierrc.js")
+    )) || {};
+  const files = await glob(path.resolve(process.cwd(), "**/*.{js,ts,tsx}"), {
+    ignore: ["node_modules/**", "**/*.d.ts"],
+  });
+  for (let i = 0; i < files.length; i++) {
+    const src = files[i];
     var code = fs.readFileSync(src, "utf8");
-
-    // const { code: es5Code } = babel.transformSync(code, {
-    //   presets: ["@babel/preset-env"],
-    // });
 
     var ast = parser.parse(code, {
       sourceType: "module",
       plugins: ["typescript", "jsx"],
     });
-
     traverse(ast, {
       JSXText(path) {
         const value = path.node.value
           ?.replace(/^[\n ]+/, "")
           ?.replace(/[\n ]+$/, "");
-
         if (hasChineseCharacters(value)) {
           path.replaceWith(
             t.jsxExpressionContainer(
@@ -77,8 +70,10 @@ const main = async () => {
         }
       },
     });
-
     traverse(ast, {
+      TSEnumMember(path) {
+        path.skip();
+      },
       StringLiteral(path) {
         if (path.isImportDeclaration()) return;
 
@@ -103,39 +98,46 @@ const main = async () => {
       TemplateLiteral(path) {
         const originalString = path.toString();
         if (!hasChineseCharacters(originalString)) return;
-        const { expressions, quasis } = path.node;
-        const stringsList = [];
 
-        for (let i = 0; i < quasis.length; i++) {
-          const quasi = quasis[i];
-          stringsList.push(quasi.value.raw);
-          if (i < expressions.length) {
-            stringsList.push(`{{${expressions[i]?.loc?.identifierName ?? i}}}`);
-          }
-        }
-
-        const codes = t.callExpression(
-          t.identifier(identifier),
-          [
-            t.stringLiteral(stringsList.join("")),
-            expressions.length > 0
-              ? removeDuplicateKeysFromObjectExpression(
-                  t.objectExpression(
-                    expressions.map((item, index) =>
-                      t.objectProperty(
-                        t.identifier(`${item.loc.identifierName ?? index}`),
-                        item as any,
-                        false,
-                        true
+        if (
+          t.isCallExpression(path.parent) &&
+          t.isIdentifier(path.parent.callee)
+        ) {
+          if (path.parent.callee.name !== identifier) {
+            const { expressions, quasis } = path.node;
+            const stringsList = [];
+            for (let i = 0; i < quasis.length; i++) {
+              const quasi = quasis[i];
+              stringsList.push(quasi.value.raw);
+              if (i < expressions.length) {
+                stringsList.push(
+                  `{{${expressions[i]?.loc?.identifierName ?? i}}}`
+                );
+              }
+            }
+            const codes = t.callExpression(
+              t.identifier(identifier),
+              [
+                t.stringLiteral(stringsList.join("")),
+                expressions.length > 0
+                  ? removeDuplicateKeysFromObjectExpression(
+                      t.objectExpression(
+                        expressions.map((item, index) =>
+                          t.objectProperty(
+                            t.identifier(`${item.loc.identifierName ?? index}`),
+                            item as any,
+                            false,
+                            true
+                          )
+                        )
                       )
                     )
-                  )
-                )
-              : null,
-          ].filter(Boolean)
-        );
-
-        path.replaceWith(codes);
+                  : null,
+              ].filter(Boolean)
+            );
+            path.replaceWith(codes);
+          }
+        }
       },
     });
 
@@ -204,28 +206,83 @@ const main = async () => {
     traverse(ast, {
       Program(path) {
         let importedNode;
+        let hasLangVariable = false;
         let importFunc = [];
         const { node } = path;
         const { body } = node;
+        const importedIdentifiers = new Map();
+        // const importsToRemove = [];
 
         path.traverse({
+          VariableDeclarator(path) {
+            if (t.isIdentifier(path.node.id)) {
+              if (path.node.id.name === identifier) {
+                hasLangVariable = true;
+              }
+            }
+          },
           ImportDeclaration(path) {
             const { node } = path;
-            if (node.source.value === importLibrary) {
+            const source = node.source.value;
+
+            if (importedIdentifiers.has(source)) {
+              path.remove();
+              const specifiers = importedIdentifiers.get(source);
+
+              importedIdentifiers.set(source, [
+                ...new Set(specifiers.concat(node.specifiers)),
+              ]);
+
+              const findImportSource = ast.program.body.find(
+                (node) =>
+                  t.isImportDeclaration(node) && node.source.value === source
+              );
+
+              if (t.isImportDeclaration(findImportSource)) {
+                findImportSource.specifiers = importedIdentifiers.get(source);
+              }
+            } else {
+              importedIdentifiers.set(source, node.specifiers);
+            }
+
+            if (source === importLibrary) {
               importedNode = node;
             }
           },
+
           CallExpression(path) {
             const { node } = path;
+
+            const flag = path.findParent((p) => {
+              if (t.isVariableDeclarator(p.node)) {
+                if (t.isIdentifier(p.node.id)) {
+                  if (importFunctions.includes(p.node.id.name)) {
+                    return true;
+                  }
+                }
+              }
+            });
+
             if (t.isIdentifier(node.callee)) {
-              if (importFunctions.includes(node.callee.name)) {
+              if (importFunctions.includes(node.callee.name) && !flag) {
                 importFunc = [...new Set(importFunc.concat(node.callee.name))];
               }
             }
           },
+
           Identifier(path) {
             const { node } = path;
-            if (importFunctions.includes(node.name)) {
+            const flag = path.findParent((p) => {
+              if (t.isVariableDeclarator(p.node)) {
+                if (t.isIdentifier(p.node.id)) {
+                  if (importFunctions.includes(p.node.id.name)) {
+                    return true;
+                  }
+                }
+              }
+            });
+
+            if (importFunctions.includes(node.name) && !flag) {
               importFunc = [...new Set(importFunc.concat(node.name))];
             }
           },
@@ -245,24 +302,33 @@ const main = async () => {
             }
           });
         } else {
-          const useTranslationImport = t.importDeclaration(
-            importFunc.map((func) =>
-              t.importSpecifier(t.identifier(func), t.identifier(func))
-            ),
-            t.stringLiteral(importLibrary)
-          );
-          // lastImport.insertAfter(useTranslationImport)
-          body.unshift(useTranslationImport);
+          importFunc.length > 0 &&
+            !hasLangVariable &&
+            body.unshift(
+              t.importDeclaration(
+                importFunc.map((func) =>
+                  t.importSpecifier(t.identifier(func), t.identifier(func))
+                ),
+                t.stringLiteral(importLibrary)
+              )
+            );
         }
       },
     });
+    const astCode = generator(ast, {
+      retainLines: true,
+      jsescOption: {
+        minimal: true,
+      },
+      code,
+    }).code;
 
-    fs.writeFileSync(
-      src,
-      generator(ast, { jsescOption: { minimal: true } }, code).code,
-      "utf-8"
-    );
-  });
+    const formatCode = prettier.format(astCode, {
+      parser: "typescript",
+      ...options,
+    });
+
+    fs.writeFileSync(src, await formatCode, "utf-8");
+  }
 };
-
 main();
