@@ -22,6 +22,7 @@
     "@types/babel__traverse": "^7.20.5",
     "glob": "^10.3.10",
     "lodash": "^4.17.21",
+    "minimist": "^1.2.8",
     "prettier": "^3.2.5"
   },
   "devDependencies": {
