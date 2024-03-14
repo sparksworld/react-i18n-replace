@@ -27,19 +27,25 @@ import { t } from "@/i18n"; //@i18n 是一个自定义的路径
 
 ```js
 // 转换前
-const name = "张三";
+const user = "张三";
 // 转换后
-const name = t("张三");
+const user = t("张三");
 ```
 
 > 模板字符串转换
 
 ```js
+const user = "张三";
 const age = 18;
 // 转换前
-const name = `张三已经${age}岁了`;
+const words = `现在时间${Date.now()}, ${user}已经${age}岁了`;
 // 转换后
-const name = t("张三已经{{age}}岁了", { age });
+const words = lang("现在时间{{0}}, {{user}}已经{{age}}岁了", {
+  0: Date.now(),
+  user,
+  age,
+});
+
 ```
 
 #### 安装方式
