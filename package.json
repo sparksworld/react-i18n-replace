@@ -1,7 +1,7 @@
 {
   "name": "react-i18n-replace",
-  "version": "1.0.5",
-  "description": "",
+  "version": "1.0.6",
+  "description": "一个批量支持国际化方法的脚本",
   "main": "lib/index.js",
   "bin": {
     "react-i18n-replace": "bin/react-i18n-replace"
