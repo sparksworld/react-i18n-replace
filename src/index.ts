@@ -22,6 +22,23 @@ const options = {
   },
 };
 const args = minimist(process.argv.slice(2), options);
+const dir = args?._?.[0];
+
+if (!dir) {
+  console.error(`缺失path参数, 请检查命令是否完整`);
+  process.exit(0);
+}
+
+const required = ["wd", "impLib", "impFuncs", "ext"];
+
+for (let i = 0; i < required.length; i++) {
+  const option = required[i];
+
+  if (!args[option]) {
+    console.error(`缺失${option}参数,请检查命令是否完整`);
+    process.exit(1);
+  }
+}
 
 const commandDescriptions = {
   v: "显示版本号",
@@ -35,10 +52,15 @@ const commandDescriptions = {
 };
 
 const main = async () => {
-  const prettierConfig = (await prettier.resolveConfig(process.cwd())) || {};
-  const files = await glob(path.resolve(process.cwd(), `**/*.{${args.ext}}`), {
-    ignore: args.ignore ?? ["node_modules/**", "**/*.d.ts"],
-  });
+  const prettierConfig =
+    (await prettier.resolveConfig(path.resolve(process.cwd(), dir ?? "."))) ||
+    {};
+  const files = await glob(
+    path.resolve(process.cwd(), `${dir}/**/*.{${args.ext}}`),
+    {
+      ignore: args.ignore ?? ["node_modules/**", "**/*.d.ts"],
+    }
+  );
 
   for (let i = 0; i < files.length; i++) {
     const src = files[i];

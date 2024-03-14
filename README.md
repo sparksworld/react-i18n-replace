@@ -1,12 +1,52 @@
-### react-i18n-replace
+## react-i18n-replace
 
-## Installation
+#### 为什么需要这个脚本？
+
+- 项目中没有支持国际化，需要手动将所有字符串替换为国际化方法，此脚本可以自动化替换字符串为国际化方法
+
+#### 脚本做了什么？
+
+> 自动引入项目中的国际化方法
+
+```js
+import { t } from "@/i18n"; //@i18n 是一个自定义的路径
+```
+
+> jsx代码转换
+
+```jsx
+<!-- 转换前 -->
+<SelfComp title="测试标题">测试文本</SelfComp>
+<!-- 转换后 -->
+<SelfComp title={t('测试标题')}>{t('测试文本')}</SelfComp>
+```
+
+> 字符串转换
+
+```js
+// 转换前
+const name = "张三";
+// 转换后
+const name = t("张三");
+```
+
+> 模板字符串转换
+
+```js
+const age = 18;
+// 转换前
+const name = `张三已经${age}岁了`;
+// 转换后
+const name = t("张三已经{{age}}岁了", { age });
+```
+
+#### 安装方式
 
 - 全局安装
 
 ```shell
 npm i react-i18n-replace -g
-//or
+# or
 yarn add react-i18n-replace -g
 ```
 
@@ -14,12 +54,16 @@ yarn add react-i18n-replace -g
 
 ```shell
 npm i react-i18n-replace --save-dev
-//or
+# or
 yarn add react-i18n-replace --dev
 ```
 
-## Options
+#### 脚本选项
+
+> react-i18n-replace [path] [options]
+
 ```
+
 -wd, --wrapped: 字符串包裹的方法名，示例：t或者lang
 
 -impLib, --importLibrary: 需要导入的包，示例: i18nxt
@@ -33,15 +77,18 @@ yarn add react-i18n-replace --dev
 可多次添加此参数，示例：--ignore node_modules/** --ignore **/*.d.ts
 ```
 
-
-## Usage
+#### 使用方法
 
 - 全局安装下执行
+
 ```
 react-i18n-replace --wd t --impLib @src/i18n --impFuncs t --ext ts,tsx
 ```
 
 - 项目下安装执行
+
 ```
 npx react-i18n-replace --wd t --impLib @src/i18n --impFuncs t --ext ts,tsx
 ```
+
+> 注：配合[i18next-scanner](https://github.com/i18next/i18next-scanner)搭配使用，效果更佳
