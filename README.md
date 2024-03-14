@@ -35,17 +35,18 @@ const user = t("张三");
 > 模板字符串转换
 
 ```js
+// 转换前
 const user = "张三";
 const age = 18;
-// 转换前
 const words = `现在时间${Date.now()}, ${user}已经${age}岁了`;
 // 转换后
-const words = lang("现在时间{{0}}, {{user}}已经{{age}}岁了", {
+const user = t("张三");
+const age = 18;
+const words = t("现在时间{{0}}, {{user}}已经{{age}}岁了", {
   0: Date.now(),
   user,
   age,
 });
-
 ```
 
 #### 安装方式
