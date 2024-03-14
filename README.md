@@ -63,6 +63,7 @@ yarn add react-i18n-replace --dev
 > react-i18n-replace [path] [options]
 
 ```
+path: 以当前终端所在目录为根目录, 示例src, 相当于当前终端目录下的src目录
 
 -wd, --wrapped: 字符串包裹的方法名，示例：t或者lang
 
@@ -82,13 +83,13 @@ yarn add react-i18n-replace --dev
 - 全局安装下执行
 
 ```
-react-i18n-replace --wd t --impLib @src/i18n --impFuncs t --ext ts,tsx
+react-i18n-replace src --wd t --impLib @src/i18n --impFuncs t --ext ts,tsx
 ```
 
 - 项目下安装执行
 
 ```
-npx react-i18n-replace --wd t --impLib @src/i18n --impFuncs t --ext ts,tsx
+npx react-i18n-replace src --wd t --impLib @src/i18n --impFuncs t --ext ts,tsx
 ```
 
 > 注：配合[i18next-scanner](https://github.com/i18next/i18next-scanner)搭配使用，效果更佳
